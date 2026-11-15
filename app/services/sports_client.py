@@ -43,3 +43,23 @@ def fetch_odds_from_api(sport_key: str) -> list:
         response = client.get(url, params = params)
         response.raise_for_status()
         return response.json()
+
+
+def fetch_scores_from_api(sport_key: str, days_from: int = 1) -> list:
+    """
+    Fetch live and recent scores for a specific sport key from The Odds API.
+    """
+    api_key = os.getenv("ODDS_API_KEY")
+    if not api_key:
+        raise ValueError("ODDS_API_KEY is not configured in environment variables.")
+
+    url = f"{ODDS_API_BASE_URL}/sports/{sport_key}/scores"
+    params = {
+        "apiKey": api_key,
+        "daysFrom": days_from
+    }
+
+    with httpx.Client() as client:
+        response = client.get(url, params = params)
+        response.raise_for_status()
+        return response.json()    

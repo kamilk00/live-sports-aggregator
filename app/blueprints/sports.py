@@ -3,18 +3,19 @@ import json
 from app.services.cache import redis_client, CACHE_TTL_SECONDS
 from app.services.auth import verify_api_key
 from app.services.limiter import limiter
+from app.services.sports_client import fetch_scores_from_api
 
 sports_bp = Blueprint("sports", __name__)
 
 
-@sports_bp.route("/live", methods=["GET"])
+@sports_bp.route("/live/<sport_key>", methods=["GET"])
 @verify_api_key
 @limiter.limit("10 per minute")
-def get_live_scores():
+def get_live_scores(sport_key: str):
     """
-    Fetch live scores, backed by Redis cache, API key auth, and per-key rate limiting.
+    Fetch live scores for a given sport key, backed by Redis cache, API key auth, and rate limiting.
     """
-    cache_key = "sports:scores:live"
+    cache_key = f"sports:scores:{sport_key.lower()}"
 
     cached_data = redis_client.get(cache_key)
     if cached_data:
@@ -23,14 +24,16 @@ def get_live_scores():
             "data": json.loads(cached_data)
         }), 200
 
-    live_matches = [
-        {"match_id": 101, "home_team": "Real Madrid", "away_team": "FC Barcelona", "score": "2:1", "minute": 74},
-        {"match_id": 102, "home_team": "Arsenal", "away_team": "Manchester City", "score": "0:0", "minute": 32}
-    ]
+    try:
+        scores_data = fetch_scores_from_api(sport_key)
+        redis_client.setex(cache_key, CACHE_TTL_SECONDS, json.dumps(scores_data))
 
-    redis_client.setex(cache_key, CACHE_TTL_SECONDS, json.dumps(live_matches))
-
-    return jsonify({
-        "source": "external_api",
-        "data": live_matches
-    }), 200
+        return jsonify({
+            "source": "the_odds_api",
+            "data": scores_data
+        }), 200
+    except Exception as e:
+        return jsonify({
+            "error": "External API Error",
+            "detail": str(e)
+        }), 502
