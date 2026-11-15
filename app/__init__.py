@@ -31,7 +31,7 @@ def create_app() -> Flask:
     def health_check():
         return jsonify({
             "service": "Live Sports Scores & Odds Aggregator",
-            "version": "0.2.0",
+            "version": "0.3.0",
             "status": "active"
         })
 
