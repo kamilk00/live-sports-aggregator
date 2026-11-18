@@ -1,17 +1,39 @@
+version: '3.8'
+
 services:
   redis:
-    image: redis:alpine
-    container_name: sports-redis
+    image: redis:7-alpine
+    container_name: sports_redis
+    ports:
+      - "6379:6379"
     restart: always
 
   web:
     build: .
-    container_name: sports-api
+    container_name: sports_web_app
+    command: gunicorn --bind 0.0.0.0:5000 "app:create_app()"
     ports:
       - "5000:5000"
+    volumes:
+      - .:/app
     environment:
       - REDIS_HOST=redis
       - FLASK_ENV=development
+      - API_KEYS=${API_KEYS}
+      - ODDS_API_KEY=${ODDS_API_KEY}
+    depends_on:
+      - redis
+    restart: always
+
+  worker:
+    build: .
+    container_name: sports_worker
+    command: python worker.py
+    volumes:
+      - .:/app
+    environment:
+      - REDIS_HOST=redis
+      - ODDS_API_KEY=${ODDS_API_KEY}
     depends_on:
       - redis
     restart: always
